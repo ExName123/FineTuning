@@ -1,0 +1,6 @@
+{
+  "name": "mobilenetv3_large_100",
+  "accuracy": 1.0,
+  "test_samples": 3,
+  "timestamp": "2025-10-04T10:29:28"
+}

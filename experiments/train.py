@@ -12,7 +12,6 @@ from datetime import datetime
 from pathlib import Path
 import warnings
 
-# 🛡️ Suppress warnings and disable internet for stability
 warnings.filterwarnings('ignore')
 os.environ['TIMM_DOWNLOAD_TIMEOUT'] = '30'
 os.environ['TIMM_DOWNLOAD_RETRY'] = '2'
@@ -75,36 +74,33 @@ class ModelTrainer:
             Path(dir_path).mkdir(parents=True, exist_ok=True)
         
     def check_data_exists(self, data_root):
-        """Check if training data exists with all image formats."""
         if not Path(data_root).exists():
-            print(f"❌ ERROR: Directory {data_root} does not exist!")
+            print(f"Directory {data_root} does not exist!")
             return False
             
         subdirs = [d for d in Path(data_root).iterdir() if d.is_dir()]
         if not subdirs:
-            print(f"❌ ERROR: No class directories in {data_root}!")
+            print(f"No class directories in {data_root}!")
             return False
             
-        print(f"✅ Data found in: {data_root}")
+        print(f"Data found in: {data_root}")
         total_images = 0
         
         for subdir in subdirs:
-            # 🎯 Support all common image formats
             image_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.JPG', '.JPEG', '.PNG', '.WEBP'}
             images = [f for f in subdir.iterdir() if f.suffix.lower() in image_extensions and f.is_file()]
             
-            print(f"   📁 {subdir.name}: {len(images)} images")
+            print(f" {subdir.name}: {len(images)} images")
             total_images += len(images)
             
-        print(f"📊 Total images: {total_images}")
+        print(f"Total images: {total_images}")
         
         if total_images < 30:
-            print("⚠️ WARNING: Less than 30 images total - may affect model performance")
+            print("Less than 30 images total - may affect model performance")
             
         return total_images > 0
         
     def get_transforms(self):
-        """Get data transforms and augmentations."""
         if self.data_cfg.augmentation:
             train_t = transforms.Compose([
                 transforms.RandomResizedCrop(self.data_cfg.img_size),
@@ -136,7 +132,6 @@ class ModelTrainer:
         indices = list(range(len(full_dataset)))
         labels = [s[1] for s in full_dataset.samples]
         
-        # Reproducible split
         train_idx, test_idx = train_test_split(
             indices, 
             test_size=self.data_cfg.test_ratio, 
@@ -150,7 +145,6 @@ class ModelTrainer:
             random_state=self.train_cfg.seed
         )
         
-        # Create datasets
         train_ds = ImageFolder(self.data_cfg.data_root, transform=train_t)
         val_ds = ImageFolder(self.data_cfg.data_root, transform=val_t)
         test_ds = ImageFolder(self.data_cfg.data_root, transform=val_t)
@@ -159,7 +153,6 @@ class ModelTrainer:
         val_subset = Subset(val_ds, val_idx)
         test_subset = Subset(test_ds, test_idx)
         
-        # Reproducible DataLoader
         generator = torch.Generator()
         generator.manual_seed(self.train_cfg.seed)
         
@@ -190,38 +183,35 @@ class ModelTrainer:
         )
         
         self.classes = full_dataset.classes
-        print(f"🎯 Classes: {self.classes}")
-        print(f"📈 Dataset split: Train={len(train_idx)}, Val={len(val_idx)}, Test={len(test_idx)}")
+        print(f"Classes: {self.classes}")
+        print(f"Dataset split: Train={len(train_idx)}, Val={len(val_idx)}, Test={len(test_idx)}")
         
         return train_loader, val_loader, test_loader
 
     def create_model(self):
         """Create model with robust error handling for downloads."""
-        print(f"🛠️ Creating model: {self.model_cfg.model_name}")
-        print(f"📚 Pretrained: {self.model_cfg.pretrained}")
+        print(f"Creating model: {self.model_cfg.model_name}")
+        print(f"Pretrained: {self.model_cfg.pretrained}")
         
         try:
-            # 🎯 Try to create model with pretrained weights
             model = timm.create_model(
                 self.model_cfg.model_name, 
                 pretrained=self.model_cfg.pretrained, 
                 num_classes=self.model_cfg.num_classes
             )
-            print(f"✅ Successfully created {self.model_cfg.model_name}")
+            print(f"Successfully created {self.model_cfg.model_name}")
             
         except Exception as e:
-            print(f"❌ Failed to download {self.model_cfg.model_name}: {e}")
-            print("🔄 Falling back to randomly initialized model...")
+            print(f"Failed to download {self.model_cfg.model_name}: {e}")
+            print("Falling back to randomly initialized model...")
             
-            # Fallback: create model without pretrained weights
             model = timm.create_model(
                 self.model_cfg.model_name, 
-                pretrained=False,  # No pretrained weights
+                pretrained=False,  
                 num_classes=self.model_cfg.num_classes
             )
-            print(f"✅ Created {self.model_cfg.model_name} with random initialization")
+            print(f"Created {self.model_cfg.model_name} with random initialization")
         
-        # Fine-tuning strategy
         if self.model_cfg.freeze_backbone:
             frozen_count = 0
             trainable_count = 0
@@ -234,14 +224,14 @@ class ModelTrainer:
                     param.requires_grad = False
                     frozen_count += 1
                     
-            print(f"🔒 Freezing: {frozen_count} frozen, {trainable_count} trainable")
-            print(f"📅 Unfreeze at epoch: {self.model_cfg.unfreeze_epoch}")
+            print(f"Freezing: {frozen_count} frozen, {trainable_count} trainable")
+            print(f"Unfreeze at epoch: {self.model_cfg.unfreeze_epoch}")
                     
         return model
 
     def unfreeze_model(self, model):
         """Unfreeze all model parameters."""
-        print("🔓 Unfreezing all parameters")
+        print("Unfreezing all parameters")
         for param in model.parameters():
             param.requires_grad = True
 
@@ -301,23 +291,17 @@ class ModelTrainer:
         return avg_loss, acc, cm, report
 
     def train(self):
-        """Main training loop."""
-        print(f"\n🚀 Training {self.model_cfg.model_name}")
-        print("=" * 50)
+        print(f"\nTraining {self.model_cfg.model_name}")
         
-        # Setup data
         train_loader, val_loader, test_loader = self.create_data_loaders()
         
-        # Create model
         model = self.create_model()
         model = model.to(self.train_cfg.device)
         
-        # Count parameters
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         total_params = sum(p.numel() for p in model.parameters())
-        print(f"🔧 Parameters: {trainable_params:,} trainable / {total_params:,} total")
+        print(f"Parameters: {trainable_params:,} trainable / {total_params:,} total")
         
-        # Setup training
         criterion = nn.CrossEntropyLoss()
         optimizer = AdamW(
             filter(lambda p: p.requires_grad, model.parameters()),
@@ -326,7 +310,6 @@ class ModelTrainer:
         )
         scheduler = CosineAnnealingLR(optimizer, T_max=self.train_cfg.epochs)
         
-        # Training history
         history = {
             'train_loss': [], 'val_loss': [],
             'train_acc': [], 'val_acc': [],
@@ -334,12 +317,11 @@ class ModelTrainer:
         }
         best_val_acc = 0.0
         
-        print(f"\n📅 Training for {self.train_cfg.epochs} epochs on {self.train_cfg.device}")
+        print(f"\nTraining for {self.train_cfg.epochs} epochs on {self.train_cfg.device}")
         
         for epoch in range(self.train_cfg.epochs):
-            # Unfreezing strategy
             if epoch == self.model_cfg.unfreeze_epoch and self.model_cfg.freeze_backbone:
-                print(f"\n🔓 Epoch {epoch}: Unfreezing backbone")
+                print(f"\nEpoch {epoch}: Unfreezing backbone")
                 self.unfreeze_model(model)
                 optimizer = AdamW(
                     model.parameters(),
@@ -348,39 +330,33 @@ class ModelTrainer:
                 )
                 scheduler = CosineAnnealingLR(optimizer, T_max=self.train_cfg.epochs - epoch)
             
-            # Training
             train_loss, train_acc = self.train_epoch(
                 model, train_loader, criterion, optimizer, self.train_cfg.device
             )
             
-            # Validation
             val_loss, val_acc, cm, report = self.validate(
                 model, val_loader, criterion, self.train_cfg.device
             )
             
             scheduler.step()
             
-            # Update history
             history['train_loss'].append(train_loss)
             history['val_loss'].append(val_loss)
             history['train_acc'].append(train_acc)
             history['val_acc'].append(val_acc)
             history['learning_rates'].append(optimizer.param_groups[0]['lr'])
             
-            # Logging
             if (epoch + 1) % self.train_cfg.log_interval == 0:
-                print(f"📊 Epoch {epoch+1}/{self.train_cfg.epochs}: "
+                print(f"Epoch {epoch+1}/{self.train_cfg.epochs}: "
                       f"Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f} | "
                       f"Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f}")
             
-            # Save best model
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
                 self.save_model(model, epoch, val_acc)
                 if (epoch + 1) % self.train_cfg.log_interval == 0:
-                    print(f"💾 New best model! Val Acc: {val_acc:.4f}")
+                    print(f"New best model Val Acc: {val_acc:.4f}")
         
-        # Final evaluation
         final_metrics = self.final_evaluation(model, test_loader, criterion)
         self.plot_results(history, cm)
         
@@ -402,11 +378,10 @@ class ModelTrainer:
             'epoch': epoch
         }, model_path)
         
-        # Save classes
         with open(f"{self.train_cfg.out_dir}/classes.txt", 'w', encoding='utf-8') as f:
             f.write('\n'.join(self.classes))
         
-        print(f"💾 Model saved: {model_path}")
+        print(f"Model saved: {model_path}")
 
     def final_evaluation(self, model, test_loader, criterion):
         """Final evaluation on test set."""
@@ -414,10 +389,10 @@ class ModelTrainer:
             model, test_loader, criterion, self.train_cfg.device
         )
         
-        print(f"\n🎯 FINAL TEST RESULTS:")
+        print(f"\nFINAL TEST RESULTS:")
         print(f"   Test Loss: {test_loss:.4f}")
         print(f"   Test Accuracy: {test_acc:.4f}")
-        print("\n📋 Classification Report:")
+        print("\nClassification Report:")
         print(test_report)
         
         return {
@@ -429,7 +404,6 @@ class ModelTrainer:
 
     def plot_results(self, history, cm):
         """Plot training results."""
-        # Training curves
         plt.figure(figsize=(12, 4))
         
         plt.subplot(1, 2, 1)
@@ -455,7 +429,7 @@ class ModelTrainer:
                    dpi=300, bbox_inches='tight')
         plt.close()
         
-        print(f"📊 Plots saved: artifacts/plots/{self.model_cfg.model_name}_training.png")
+        print(f"Plots saved: artifacts/plots/{self.model_cfg.model_name}_training.png")
 
 
 def export_onnx(model_name, num_classes, img_size=224):
@@ -464,18 +438,16 @@ def export_onnx(model_name, num_classes, img_size=224):
     
     model_path = f"artifacts/models/best_{model_name}.pth"
     if not os.path.exists(model_path):
-        print(f"❌ Model {model_path} not found for ONNX export")
+        print(f"Model {model_path} not found for ONNX export")
         return False
         
     try:
         checkpoint = torch.load(model_path, map_location=device)
         
-        # Create and load model
         model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
         model.load_state_dict(checkpoint['model_state_dict'])
         model.eval().to(device)
         
-        # Export to ONNX
         dummy_input = torch.randn(1, 3, img_size, img_size, device=device)
         onnx_path = f"artifacts/best_{model_name}.onnx"
         
@@ -489,10 +461,10 @@ def export_onnx(model_name, num_classes, img_size=224):
             },
             opset_version=12
         )
-        print(f"✅ ONNX model exported: {onnx_path}")
+        print(f"ONNX model exported: {onnx_path}")
         return True
     except Exception as e:
-        print(f"❌ ONNX export failed for {model_name}: {e}")
+        print(f"ONNX export failed for {model_name}: {e}")
         return False
 
 
@@ -501,7 +473,7 @@ def get_alternative_model_config():
     return ExperimentConfig(
         data=DataConfig(batch_size=32, img_size=224),
         model=ModelConfig(
-            model_name="mobilenetv3_large_100",  # 🎯 Alternative model
+            model_name="mobilenetv3_large_100",  
             num_classes=3,
             pretrained=True,
             freeze_backbone=True,
@@ -515,7 +487,6 @@ def get_alternative_model_config():
 
 def main():
     """Main function with robust error handling."""
-    # Set random seeds
     seed = 42
     random.seed(seed)
     np.random.seed(seed)
@@ -525,26 +496,23 @@ def main():
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     
-    print("🚀 CAR CLASSIFICATION TRAINING")
-    print("🎯 Using ResNet50 + MobileNetV3 as models")
+    print("CAR CLASSIFICATION TRAINING")
+    print("Using ResNet50 + MobileNetV3 as models")
     print("=" * 55)
     
-    # Create directories and check data
     trainer = ModelTrainer(EXPERIMENT_CONFIGS['resnet50'])
     trainer.setup_data_directories()
     
-    # Check if data exists
     if not trainer.check_data_exists("data/raw"):
-        print("\n❌ Please add your images to:")
+        print("\nPlease add your images to:")
         print("   data/raw/minivan/  (30+ images)")
         print("   data/raw/sedan/    (30+ images)")
         print("   data/raw/wagon/    (30+ images)")
         sys.exit(1)
     
-    # 🎯 TRAIN MODELS WITH ERROR HANDLING
     models_to_try = [
-        ('resnet50', EXPERIMENT_CONFIGS['resnet50']),      # First model - always try
-        ('mobilenetv3_large_100', get_alternative_model_config()),  # 🎯 Second model - MobileNetV3
+        ('resnet50', EXPERIMENT_CONFIGS['resnet50']),
+        ('mobilenetv3_large_100', get_alternative_model_config()),
     ]
     
     results = {}
@@ -552,7 +520,7 @@ def main():
     
     for model_name, exp_config in models_to_try:
         print(f"\n{'='*50}")
-        print(f"🎯 PROCESSING: {model_name.upper()}")
+        print(f"PROCESSING: {model_name.upper()}")
         print(f"{'='*50}")
         
         try:
@@ -569,41 +537,39 @@ def main():
             # Export to ONNX
             export_success = export_onnx(model_name, exp_config.model.num_classes)
             if export_success:
-                print(f"✅ {model_name} - Training and export completed!")
+                print(f"{model_name} - Training and export completed!")
             else:
-                print(f"⚠️ {model_name} - Training completed but ONNX export failed")
+                print(f"{model_name} - Training completed but ONNX export failed")
                 
         except Exception as e:
-            print(f"❌ {model_name} training failed: {e}")
+            print(f"{model_name} training failed: {e}")
             
             if model_name == 'resnet50':
-                print("💀 CRITICAL: First model failed! Stopping execution.")
+                print("CRITICAL: First model failed! Stopping execution.")
                 sys.exit(1)
             else:
-                print("⚠️ NON-CRITICAL: Second model failed. Continuing...")
+                print("NON-CRITICAL: Second model failed. Continuing...")
                 continue
     
-    # 🎯 FINAL RESULTS
     print(f"\n{'='*50}")
-    print("📊 TRAINING SUMMARY")
+    print("TRAINING SUMMARY")
     print(f"{'='*50}")
     
     if successful_models:
-        print("✅ Successfully trained models:")
+        print("Successfully trained models:")
         for model_name in successful_models:
             test_acc = results[model_name]['metrics']['test_acc']
-            print(f"   🏆 {model_name}: Test Accuracy = {test_acc:.4f}")
+            print(f" {model_name}: Test Accuracy = {test_acc:.4f}")
         
-        # Find best model
         if len(successful_models) > 1:
             best_model = max(successful_models, key=lambda x: results[x]['metrics']['test_acc'])
             best_acc = results[best_model]['metrics']['test_acc']
-            print(f"\n🎉 BEST MODEL: {best_model} with accuracy {best_acc:.4f}")
+            print(f"\nBEST MODEL: {best_model} with accuracy {best_acc:.4f}")
     else:
-        print("❌ No models were successfully trained")
+        print("No models were successfully trained")
     
-    print(f"\n📁 Results saved in: artifacts/")
-    print("✨ Training completed!")
+    print(f"\nResults saved in: artifacts/")
+    print("Training completed!")
 
 
 if __name__ == "__main__":

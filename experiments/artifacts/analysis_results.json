@@ -1,0 +1,37 @@
+{
+  "best_model": {
+    "Model": "mobilenetv3_large_100",
+    "Family": "MobileNet",
+    "Test Accuracy": 0.9285714285714286,
+    "Epochs Trained": 11,
+    "Parameters": 4230321
+  },
+  "comparison": [
+    {
+      "Model": "resnet50",
+      "Family": "ResNet",
+      "Test Accuracy": 0.8571428571428571,
+      "Epochs Trained": 2,
+      "Parameters": 23567352
+    },
+    {
+      "Model": "mobilenetv3_large_100",
+      "Family": "MobileNet",
+      "Test Accuracy": 0.9285714285714286,
+      "Epochs Trained": 11,
+      "Parameters": 4230321
+    }
+  ],
+  "summary": {
+    "accuracy_range": [
+      0.8571428571428571,
+      0.9285714285714286
+    ],
+    "parameter_range": [
+      4230321,
+      23567352
+    ],
+    "models_tested": 2,
+    "best_accuracy": 0.9285714285714286
+  }
+}

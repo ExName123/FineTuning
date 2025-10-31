@@ -70,13 +70,13 @@ class TrainConfig:
 
 @dataclass
 class HyperparameterSearchConfig:
-    search_type: str = "grid"  # "grid", "random", "bayesian"
-    n_trials: int = 20
+    search_type: str = "grid"
+    n_trials: int = 8
     
-    learning_rates: List[float] = field(default_factory=lambda: [0.1, 0.01, 0.001, 0.0001])
-    batch_sizes: List[int] = field(default_factory=lambda: [8, 16, 32])
-    weight_decays: List[float] = field(default_factory=lambda: [0.1, 0.01, 0.001, 0.0001])
-    unfreeze_epochs: List[int] = field(default_factory=lambda: [3, 5, 7, 10])
+    learning_rates: List[float] = field(default_factory=lambda: [0.001, 0.0001])
+    # batch_sizes: List[int] = field(default_factory=lambda: [8, 16, 32])
+    # weight_decays: List[float] = field(default_factory=lambda: [0.1, 0.01, 0.001, 0.0001])
+    epochs_list: List[int] = field(default_factory=lambda: [10, 15])
     
     tuning_epochs: int = 10
     patience: int = 3
@@ -108,13 +108,13 @@ RESNET50_EXPERIMENT = ExperimentConfig(
     train=TrainConfig(epochs=15, learning_rate=0.001, seed=42)
 )
 
-EFFICIENTNET_EXPERIMENT = ExperimentConfig(
+MOBILENET_EXPERIMENT = ExperimentConfig(
     data=DataConfig(batch_size=32, img_size=224),
-    model=ModelConfig(model_name="efficientnet_b0", freeze_backbone=True, unfreeze_epoch=3),
+    model=ModelConfig(model_name="mobilenetv3_large_100", freeze_backbone=True, unfreeze_epoch=3),
     train=TrainConfig(epochs=15, learning_rate=0.001, seed=42)
 )
 
 EXPERIMENT_CONFIGS = {
     'resnet50': RESNET50_EXPERIMENT,
-    'efficientnet_b0': EFFICIENTNET_EXPERIMENT,
+    'mobilenetv3_large_100': MOBILENET_EXPERIMENT,
 }
